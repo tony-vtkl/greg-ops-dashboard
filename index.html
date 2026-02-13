@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Greg Ops Dashboard — Operational Control Panel</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface-2: #1a1a25;
+    --border: #2a2a3a;
+    --text: #e0e0e8;
+    --text-dim: #8888a0;
+    --accent: #4f8ff7;
+    --accent-dim: #3a6bc2;
+    --green: #34d399;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --orange: #fb923c;
+    --purple: #a78bfa;
+    --radius: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  header h1 .emoji { font-size: 24px; }
+  .header-meta {
+    font-size: 13px;
+    color: var(--text-dim);
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+  }
+  .status-dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.yellow { background: var(--yellow); }
+  .status-dot.red { background: var(--red); }
+
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+  }
+  nav a {
+    color: var(--text-dim);
+    text-decoration: none;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  nav a:hover { color: var(--text); }
+  nav a.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 32px; }
+
+  .section { display: none; }
+  .section.active { display: block; }
+  .section h2 {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .section .subtitle {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card p { color: var(--text-dim); font-size: 14px; margin-bottom: 8px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 768px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    main { padding: 16px; }
+    nav { padding: 0 16px; }
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .tag.green { background: rgba(52,211,153,0.15); color: var(--green); }
+  .tag.yellow { background: rgba(251,191,36,0.15); color: var(--yellow); }
+  .tag.red { background: rgba(248,113,113,0.15); color: var(--red); }
+  .tag.blue { background: rgba(79,143,247,0.15); color: var(--accent); }
+  .tag.purple { background: rgba(167,139,250,0.15); color: var(--purple); }
+  .tag.orange { background: rgba(251,146,60,0.15); color: var(--orange); }
+
+  /* Architecture diagram */
+  .arch-diagram {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    margin: 16px 0 24px;
+    overflow-x: auto;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    white-space: pre;
+    color: var(--text-dim);
+  }
+  .arch-diagram .highlight { color: var(--accent); font-weight: 600; }
+  .arch-diagram .green-text { color: var(--green); }
+  .arch-diagram .yellow-text { color: var(--yellow); }
+  .arch-diagram .purple-text { color: var(--purple); }
+  .arch-diagram .dim { color: #555570; }
+
+  /* Data flow table */
+  .flow-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin: 12px 0;
+  }
+  .flow-table th {
+    text-align: left;
+    padding: 10px 16px;
+    background: var(--surface-2);
+    color: var(--text-dim);
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+  }
+  .flow-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .flow-table tr:hover { background: var(--surface-2); }
+
+  /* Changelog */
+  details summary:hover { opacity: 0.8; }
+  details[open] summary { margin-bottom: 12px; }
+  .changelog-entry {
+    border-left: 3px solid var(--border);
+    padding: 16px 0 16px 20px;
+    margin-bottom: 8px;
+    position: relative;
+  }
+  .changelog-entry::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 20px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .changelog-entry.added::before { background: var(--green); }
+  .changelog-entry.modified::before { background: var(--yellow); }
+  .changelog-entry.removed::before { background: var(--red); }
+  .changelog-entry.fixed::before { background: var(--orange); }
+  .changelog-entry .cl-time {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: monospace;
+  }
+  .changelog-entry .cl-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 4px 0;
+  }
+  .changelog-entry .cl-body {
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  /* Tech docs */
+  .doc-section { margin-bottom: 32px; }
+  .doc-section h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+  .doc-section code {
+    background: var(--surface-2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: 'SF Mono', monospace;
+  }
+  .doc-section pre {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    font-size: 13px;
+    overflow-x: auto;
+    margin: 8px 0;
+    font-family: 'SF Mono', monospace;
+    line-height: 1.5;
+  }
+  ul.doc-list {
+    list-style: none;
+    padding: 0;
+  }
+  ul.doc-list li {
+    padding: 6px 0;
+    font-size: 14px;
+    color: var(--text-dim);
+    border-bottom: 1px solid rgba(42,42,58,0.5);
+  }
+  ul.doc-list li:last-child { border: none; }
+  ul.doc-list li strong { color: var(--text); }
+
+  .last-updated {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 12px;
+    padding: 32px 0;
+    border-top: 1px solid var(--border);
+    margin-top: 48px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="emoji">🎯</span> Greg Ops Dashboard</h1>
+  <div class="header-meta">
+    <span><span class="status-dot green"></span>System Online</span>
+    <span id="header-time"></span>
+  </div>
+</header>
+
+<nav id="nav">
+  <a href="#architecture" class="active" data-section="architecture">Architecture</a>
+  <a href="#integrations" data-section="integrations">Integrations</a>
+  <a href="#changelog" data-section="changelog">Change Log</a>
+  <a href="#technical" data-section="technical">Technical Docs</a>
+  <a href="#status" data-section="status">System Status</a>
+  <a href="#assessments" data-section="assessments">Assessments</a>
+  <a href="#business-overview" data-section="business-overview">Business Overview</a>
+  <a href="#sops" data-section="sops">SOPs</a>
+</nav>
+
+<main>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SECTION 1: ARCHITECTURE OVERVIEW            -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section active" id="architecture">
+  <h2>Architecture Overview</h2>
+  <p class="subtitle">How Greg's operational systems are designed, connected, and why.</p>
+
+  <div class="card">
+    <h3>🧠 Core Design Philosophy</h3>
+    <p>Greg is an AI Chief of Staff running on <strong style="color:var(--text)">OpenClaw</strong> — an open-source AI gateway that provides persistent sessions, multi-channel messaging, tool access, and scheduled automation. The architecture follows Charlie Hulcher's <strong style="color:var(--text)">"Organization as Code"</strong> pattern: deterministic event-driven polling replaces lossy heartbeat-based scanning.</p>
+    <p style="margin-top:12px"><strong style="color:var(--text)">Key Principle:</strong> Sources emit events → Routes carry focused SOPs → Actors (Greg) process with one job, one prompt, one lifetime. Each polling cycle is deterministic and auditable.</p>
+    <p style="margin-top:12px"><strong style="color:var(--green)">OrgLoop Implementation: 100% Complete (Feb 10)</strong></p>
+    <p style="margin-top:8px"><strong style="color:var(--text)">Gap 1 — <code>orgloop.yaml</code>:</strong> Declarative routing config. 7 sources, 2 actors, 19 routes with priority levels and completion chain table. Single source of truth for all event→SOP→actor wiring.</p>
+    <p style="margin-top:4px"><strong style="color:var(--text)">Gap 2 — Dynamic Router:</strong> <code>orgloop-router.sh</code> reads YAML at runtime, matches source+event to route, injects correct SOP. All polling scripts refactored to use router (legacy fallback preserved).</p>
+    <p style="margin-top:4px"><strong style="color:var(--text)">Gap 3 — Slack Routing:</strong> Slack events bridged into OrgLoop via <code>slack-event-router.sh</code>. Same SOP pipeline as email/calendar/todos.</p>
+    <p style="margin-top:4px"><strong style="color:var(--text)">Gap 4 — Connector Pattern:</strong> 5 standardized connectors (email, calendar, todos, slack, completion) with contract: <code>poll | test | schema</code>. Documented in <code>connectors/README.md</code>.</p>
+    <p style="margin-top:8px; color:var(--text-dim)">Previous: 16 SOPs extracted from process MDs. Route map in ROUTES.md. Completion loop 🧬 chains task output to next action.</p>
+  </div>
+
+  <div class="card">
+    <h3>📐 System Architecture</h3>
+    <div class="arch-diagram"><span class="dim">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="dim">│</span>  <span class="highlight">EXTERNAL SOURCES</span>                                               <span class="dim">│</span>
+<span class="dim">│</span>                                                                 <span class="dim">│</span>
+<span class="dim">│</span>  <span class="green-text">📧 Gmail</span>        <span class="green-text">📅 Google Cal</span>     <span class="green-text">💬 Slack</span>      <span class="green-text">📱 WhatsApp</span>  <span class="dim">│</span>
+<span class="dim">│</span>  (greg@vtkl.ai)  (tony@vtkl.ai)   (VtKl Org)   (disabled)   <span class="dim">│</span>
+<span class="dim">└──────┬──────────────┬──────────────┬──────────────┬────────────┘</span>
+       │              │              │              │
+       ▼              ▼              ▼              ▼
+<span class="dim">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="dim">│</span>  <span class="yellow-text">EVENT-DRIVEN POLLING LAYER</span> (LaunchAgents on macOS)             <span class="dim">│</span>
+<span class="dim">│</span>                                                                 <span class="dim">│</span>
+<span class="dim">│</span>  <span class="yellow-text">email-poll.sh</span>     <span class="yellow-text">calendar-poll.sh</span>    <span class="yellow-text">todos-poll.sh</span>       <span class="dim">│</span>
+<span class="dim">│</span>  Every 5 min        Every 15 min         Every 30 min         <span class="dim">│</span>
+<span class="dim">│</span>  └→ gog mail        └→ gog cal            └→ curl Supabase     <span class="dim">│</span>
+<span class="dim">│</span>  └→ <span class="purple-text">SOP: email</span>     └→ <span class="purple-text">SOP: calendar</span>     └→ <span class="purple-text">SOP: todo</span>          <span class="dim">│</span>
+<span class="dim">│</span>     <span class="purple-text">triage.md</span>        <span class="purple-text">alert.md</span>            <span class="purple-text">escalate.md</span>       <span class="dim">│</span>
+<span class="dim">└──────┬──────────────────┬──────────────────┬────────────────────┘</span>
+       │                  │                  │
+       └──────────────────┼──────────────────┘
+                          ▼
+<span class="dim">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="dim">│</span>  <span class="purple-text">SOP ROUTING LAYER</span>  (scripts/sops/ — 15 focused SOPs)           <span class="dim">│</span>
+<span class="dim">│</span>                                                                 <span class="dim">│</span>
+<span class="dim">│</span>  Each poll injects the relevant SOP as a launch prompt:         <span class="dim">│</span>
+<span class="dim">│</span>  email → <span class="purple-text">email-triage.md</span>   calendar → <span class="purple-text">calendar-alert.md</span>          <span class="dim">│</span>
+<span class="dim">│</span>  todos → <span class="purple-text">todo-escalate.md</span>  slack → <span class="purple-text">slack-triage.md</span>              <span class="dim">│</span>
+<span class="dim">│</span>  deploy → <span class="purple-text">deploy-verify.md</span> session → <span class="purple-text">session-start.md</span>           <span class="dim">│</span>
+<span class="dim">│</span>                                                                 <span class="dim">│</span>
+<span class="dim">│</span>  Route map: <span class="purple-text">ROUTES.md</span> (event → SOP → actor wiring)               <span class="dim">│</span>
+<span class="dim">└──────────────────────────┬──────────────────────────────────────┘</span>
+                          ▼
+<span class="dim">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="dim">│</span>  <span class="highlight">OPENCLAW GATEWAY</span>  (localhost:18789)                             <span class="dim">│</span>
+<span class="dim">│</span>                                                                 <span class="dim">│</span>
+<span class="dim">│</span>  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────────┐  <span class="dim">│</span>
+<span class="dim">│</span>  │ <span class="purple-text">Webhook</span>  │  │ <span class="purple-text">Sessions</span> │  │ <span class="purple-text">Cron</span>     │  │ <span class="purple-text">Plugins</span>       │  <span class="dim">│</span>
+<span class="dim">│</span>  │ /hooks/  │  │ Main +   │  │ Uptime   │  │ Slack         │  <span class="dim">│</span>
+<span class="dim">│</span>  │ agent    │  │ Isolated │  │ Maint.   │  │ Ctx-Persist   │  <span class="dim">│</span>
+<span class="dim">│</span>  └──────────┘  └──────────┘  └──────────┘  └───────────────┘  <span class="dim">│</span>
+<span class="dim">│</span>                                                                 <span class="dim">│</span>
+<span class="dim">│</span>  Model: <span class="green-text">anthropic/claude-opus-4-6</span>  Default: <span class="green-text">xai/grok-2</span>          <span class="dim">│</span>
+<span class="dim">└──────┬──────────────────┬──────────────────┬────────────────────┘</span>
+       │                  │                  │
+       ▼                  ▼                  ▼
+<span class="dim">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="dim">│</span>  <span class="green-text">DATA & STORAGE</span>                                                  <span class="dim">│</span>
+<span class="dim">│</span>                                                                 <span class="dim">│</span>
+<span class="dim">│</span>  <span class="green-text">Supabase</span>          <span class="green-text">GitHub</span>             <span class="green-text">Local Files</span>            <span class="dim">│</span>
+<span class="dim">│</span>  Todos, Kanban,    tony-vtkl/          Memory, Configs,       <span class="dim">│</span>
+<span class="dim">│</span>  Notes, Stream     greg-workspace       Scripts, Checkpoints   <span class="dim">│</span>
+<span class="dim">│</span>                                                                 <span class="dim">│</span>
+<span class="dim">│</span>  <span class="green-text">Vercel</span>                                                        <span class="dim">│</span>
+<span class="dim">│</span>  greg-dashboard.vercel.app  (6 kanban boards + todos/notes)     <span class="dim">│</span>
+<span class="dim">│</span>  greg-ops.vercel.app        (this dashboard)                    <span class="dim">│</span>
+<span class="dim">└─────────────────────────────────────────────────────────────────┘</span></div>
+  </div>
+
+  <div class="card">
+    <h3>⚙️ Key Assumptions & Constraints</h3>
+    <div class="grid-2">
+      <div>
+        <p><strong style="color:var(--text)">Runtime Environment</strong></p>
+        <ul class="doc-list">
+          <li>macOS (Apple Silicon M-series) — Greg's MacBook Air</li>
+          <li>Node.js v25.6.0, OpenClaw 2026.2.9</li>
+          <li>Always-on via LaunchAgents (not Docker)</li>
+          <li>Local gateway, no public exposure</li>
+        </ul>
+      </div>
+      <div>
+        <p><strong style="color:var(--text)">Design Constraints</strong></p>
+        <ul class="doc-list">
+          <li>Session context window: 200k tokens (compacts at ceiling)</li>
+          <li>Memory is file-based (daily .md files + MEMORY.md)</li>
+          <li>No persistent process state — wake fresh each session</li>
+          <li>External actions (email, Slack) require explicit approval</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SECTION 2: INTEGRATIONS                     -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section" id="integrations">
+  <h2>Integrations & Connections</h2>
+  <p class="subtitle">Every system Greg is connected to, why it exists, and how data flows. No credentials exposed.</p>
+
+  <div class="card">
+    <h3>📊 Integration Matrix</h3>
+    <table class="flow-table">
+      <thead>
+        <tr>
+          <th>System</th>
+          <th>Purpose</th>
+          <th>Data In</th>
+          <th>Data Out</th>
+          <th>Frequency</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Gmail</strong></td>
+          <td>Email monitoring & triage</td>
+          <td>Unread emails (headers + body)</td>
+          <td>Draft replies, flags, forwards</td>
+          <td><span class="tag blue">Every 5 min</span></td>
+          <td><span class="tag green">Active</span></td>
+        </tr>
+        <tr>
+          <td><strong>Google Calendar</strong></td>
+          <td>Schedule awareness & conflict detection</td>
+          <td>Events (next 48h window)</td>
+          <td>Event creation (greg@vtkl.ai as writer)</td>
+          <td><span class="tag blue">Every 15 min</span></td>
+          <td><span class="tag green">Active</span></td>
+        </tr>
+        <tr>
+          <td><strong>Slack (VtKl)</strong></td>
+          <td>Team communication & coordination</td>
+          <td>Messages, mentions, DMs</td>
+          <td>Replies, reactions, proactive alerts</td>
+          <td><span class="tag purple">Real-time (Socket)</span></td>
+          <td><span class="tag green">Active</span></td>
+        </tr>
+        <tr>
+          <td><strong>Supabase</strong></td>
+          <td>Dashboard data store (todos, kanban, notes, stream)</td>
+          <td>Read: task status, board items</td>
+          <td>Write: task updates, new items, status changes</td>
+          <td><span class="tag blue">Every 30 min</span> + on-demand</td>
+          <td><span class="tag green">Active</span></td>
+        </tr>
+        <tr>
+          <td><strong>Vercel</strong></td>
+          <td>Dashboard hosting (2 projects)</td>
+          <td>—</td>
+          <td>Deployments via CLI</td>
+          <td><span class="tag orange">Manual</span></td>
+          <td><span class="tag green">Active</span></td>
+        </tr>
+        <tr>
+          <td><strong>GitHub</strong></td>
+          <td>Version control for workspace</td>
+          <td>Repo state, diffs</td>
+          <td>Commits, pushes</td>
+          <td><span class="tag orange">Manual</span></td>
+          <td><span class="tag green">Active</span></td>
+        </tr>
+        <tr>
+          <td><strong>OpenClaw Webhook</strong></td>
+          <td>Event ingestion from polling scripts</td>
+          <td>Structured event payloads</td>
+          <td>Agent turn triggers</td>
+          <td><span class="tag purple">Event-driven</span></td>
+          <td><span class="tag green">Active</span></td>
+        </tr>
+        <tr>
+          <td><strong>WhatsApp</strong></td>
+          <td>Direct messaging (Tony only)</td>
+          <td>Messages from Tony</td>
+          <td>Replies</td>
+          <td><span class="tag purple">Real-time</span></td>
+          <td><span class="tag yellow">Disabled</span></td>
+        </tr>
+        <tr>
+          <td><strong>Brave Search</strong></td>
+          <td>Web research</td>
+          <td>Search results</td>
+          <td>Search queries</td>
+          <td><span class="tag orange">On-demand</span></td>
+          <td><span class="tag green">Active</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>🔄 Polling Scripts (Event Layer)</h3>
+      <p>Three bash scripts run as macOS LaunchAgents, checking sources at fixed intervals. Each injects its relevant SOP as a <strong style="color:var(--text)">launch prompt</strong> — the OrgLoop pattern where the route carries focused instructions, not a generic "handle this."</p>
+      <ul class="doc-list">
+        <li><strong>email-poll.sh</strong> — Gmail via <code>gog mail</code> every 5 min → injects <code>sops/email-triage.md</code> (sender priority, categorize, act/escalate/log)</li>
+        <li><strong>calendar-poll.sh</strong> — Google Calendar via <code>gog cal</code> every 15 min → injects <code>sops/calendar-alert.md</code> (alert format, &lt;2h threshold, prep items)</li>
+        <li><strong>todos-poll.sh</strong> — Supabase REST API every 30 min → injects <code>sops/todo-escalate.md</code> (priority framework, blockers, Pareto engine)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🔌 Slack Integration Details</h3>
+      <p>Connected via Socket Mode (WebSocket) — no public URL needed. The Greg bot app is installed in the VtKl Slack organization.</p>
+      <ul class="doc-list">
+        <li><strong>App ID:</strong> A0AEDSF6KRN</li>
+        <li><strong>Mode:</strong> Socket (persistent WebSocket)</li>
+        <li><strong>Group Policy:</strong> Open (all channels accessible)</li>
+        <li><strong>DM Policy:</strong> Open (anyone can DM)</li>
+        <li><strong>⚠️ Security Note:</strong> Policies are intentionally open during setup phase. Will be tightened to allowlist.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🗄️ Data Flow Diagram</h3>
+    <div class="arch-diagram"><span class="green-text">Gmail</span> ──5min──→ <span class="yellow-text">email-poll.sh</span> ──→ inject <span class="purple-text">email-triage.md</span> ──webhook──→ <span class="highlight">OpenClaw</span>
+<span class="green-text">GCal</span>  ──15min─→ <span class="yellow-text">calendar-poll.sh</span> ──→ inject <span class="purple-text">calendar-alert.md</span> ──webhook──→ <span class="highlight">OpenClaw</span>
+<span class="green-text">Supa</span>  ──30min─→ <span class="yellow-text">todos-poll.sh</span> ──→ inject <span class="purple-text">todo-escalate.md</span> ──webhook──→ <span class="highlight">OpenClaw</span>
+<span class="green-text">Slack</span> ──realtime─────────────────────────────────────────→ <span class="highlight">OpenClaw</span>
+<span class="green-text">Web</span>   ──on-demand───────────────────────────────────────→ <span class="highlight">OpenClaw</span>
+
+<span class="dim">Each poll carries event data + focused SOP as launch prompt (OrgLoop pattern).</span>
+<span class="dim">Actor gets one job, one set of instructions — not "handle this appropriately."</span>
+<span class="dim">All outbound actions go through OpenClaw's tool layer. Greg never has direct creds.</span></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SECTION 3: CHANGE LOG                       -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section" id="changelog">
+  <h2>Change Log</h2>
+  <p class="subtitle">Operational audit trail — every significant change, when, what, and why.</p>
+
+  <div id="changelog-entries">
+    <!-- Entries are rendered from JS data below -->
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SECTION 4: TECHNICAL DOCUMENTATION          -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section" id="technical">
+  <h2>Technical Documentation</h2>
+  <p class="subtitle">Structured technical description of all components, logic, data structures, and trade-offs.</p>
+
+  <div class="doc-section">
+    <h4>1. OpenClaw Gateway</h4>
+    <div class="card">
+      <p>The gateway is the central process — a Node.js server running locally on port 18789. It manages all AI sessions, tool execution, channel routing, and plugin lifecycle.</p>
+      <pre>Location: /opt/homebrew/lib/node_modules/openclaw/
+Config:   ~/.openclaw/openclaw.json
+State:    ~/.openclaw/ (sessions, identity, plugins, context)
+Model:    anthropic/claude-opus-4-6 (active) | xai/grok-2 (default)</pre>
+      <p style="margin-top:12px"><strong style="color:var(--text)">Key Config Decisions:</strong></p>
+      <ul class="doc-list">
+        <li><strong>commands.restart: true</strong> — Allows SIGUSR1 restarts from within sessions</li>
+        <li><strong>hooks.enabled: true</strong> — Webhook endpoint for polling script ingestion</li>
+        <li><strong>context-persistence.autoCapture: false</strong> — Disabled to prevent runaway duplication bug</li>
+        <li><strong>session.dmScope: main</strong> — All DM channels share the main session context</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="doc-section">
+    <h4>2. Event-Driven Polling + SOP Routing</h4>
+    <div class="card">
+      <p>Replaced the original heartbeat-based scanning approach. Based on Charlie Hulcher's "Organization as Code" (OrgLoop) architecture. Each polling script now injects a focused SOP as the launch prompt.</p>
+      <pre>Scripts:       ~/.openclaw/scripts/{email,calendar,todos}-poll.sh
+SOPs:          ~/.openclaw/scripts/sops/ (15 focused SOPs)
+Route Map:     ~/.openclaw/scripts/sops/ROUTES.md
+LaunchAgents:  ~/Library/LaunchAgents/ai.openclaw.{email,calendar,todos}-poll.plist
+Webhook:       POST http://localhost:18789/hooks/agent
+Auth:          Bearer token (dedicated hook token, separate from gateway auth)</pre>
+      <p style="margin-top:12px"><strong style="color:var(--text)">Why event-driven over heartbeat?</strong></p>
+      <ul class="doc-list">
+        <li><strong>Deterministic</strong> — Each poll checks exactly one source with a focused prompt</li>
+        <li><strong>Auditable</strong> — Scripts are plain bash, logs are standard launchd output</li>
+        <li><strong>Independent</strong> — Scripts run regardless of session state or context window pressure</li>
+        <li><strong>Efficient</strong> — No wasted tokens scanning sources that haven't changed</li>
+      </ul>
+      <p style="margin-top:12px"><strong style="color:var(--text)">SOP Architecture (OrgLoop pattern):</strong></p>
+      <ul class="doc-list">
+        <li><strong>Route carries launch prompt</strong> — Actor doesn't figure out which SOP applies; the routing layer already decided</li>
+        <li><strong>One job, one SOP, one lifetime</strong> — Each wake is focused. No bloated "check everything" system prompts.</li>
+        <li><strong>15 SOPs extracted from 4 source files</strong> — AGENTS.md, PROTOCOL.md, HEARTBEAT.md, SOUL.md → decomposed into event-specific procedures</li>
+        <li><strong>ROUTES.md</strong> — Declarative event→SOP wiring map. Bridge to future OrgLoop <code>orgloop.yaml</code> integration.</li>
+      </ul>
+      <p style="margin-top:12px"><strong style="color:var(--text)">SOPs by category:</strong></p>
+      <pre>Session:    session-start.md, context-loss-recovery.md, memory-write.md
+Comms:      email-triage.md, calendar-alert.md, slack-triage.md
+Tasks:      todo-escalate.md, initiative-check.md, morning-standup.md
+Quality:    deploy-verify.md, sub-agent-verify.md, done-evidence.md
+Safety:     config-change.md, external-action-gate.md, escalation.md</pre>
+    </div>
+  </div>
+
+  <div class="doc-section">
+    <h4>3. Dashboard Data Architecture</h4>
+    <div class="card">
+      <p>Two Vercel projects serve the user-facing dashboards. All dynamic data lives in Supabase.</p>
+      <pre>greg-dashboard.vercel.app
+├── kanban-todo.html      → Supabase kanban_items (board='todos')
+├── kanban-family.html    → Supabase kanban_items (board='family')
+├── kanban-health.html    → Supabase kanban_items (board='health')
+├── kanban-marketing.html → Supabase kanban_items (board='marketing')
+├── kanban-meals.html     → Supabase kanban_items (board='meals')
+├── kanban-workout.html   → Supabase kanban_items (board='workout')
+├── todos.html            → Supabase todos table
+├── notes.html            → Supabase notes table
+├── stream.html           → Supabase stream_items table
+├── standup.html          → localStorage only (cannot update remotely)
+└── meals.html            → localStorage only (cannot update remotely)</pre>
+      <p style="margin-top:12px"><strong style="color:var(--text)">Known Limitation:</strong> <code>standup.html</code> and <code>meals.html</code> use localStorage only — Greg cannot update these remotely. Migration to Supabase is planned.</p>
+    </div>
+  </div>
+
+  <div class="doc-section">
+    <h4>4. Memory & Continuity System</h4>
+    <div class="card">
+      <p>Greg wakes fresh each session. Continuity is maintained through structured files:</p>
+      <pre>~/.openclaw/workspace/
+├── MEMORY.md              → Long-term curated memory (main sessions only)
+├── SOUL.md                → Identity and behavioral guidelines
+├── USER.md                → Information about Tony
+├── PROTOCOL.md            → Operating procedures
+├── AGENTS.md              → Workspace conventions
+├── HEARTBEAT.md           → Heartbeat check rotation
+├── INITIATIVES.md         → Initiative tracker
+└── memory/
+    ├── checkpoint.md      → Last known state (crash recovery)
+    ├── YYYY-MM-DD.md      → Daily activity logs
+    └── heartbeat-state.json → Check rotation tracking</pre>
+      <p style="margin-top:12px"><strong style="color:var(--text)">Session Start Protocol:</strong></p>
+      <ul class="doc-list">
+        <li>1. Read <code>checkpoint.md</code> — recover from any crash</li>
+        <li>2. Read today's + yesterday's daily file — recent context</li>
+        <li>3. Read <code>MEMORY.md</code> (main session only) — long-term context</li>
+        <li>4. Query Supabase todos — high-priority items</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="doc-section">
+    <h4>5. Known Trade-offs & Limitations</h4>
+    <div class="card">
+      <div class="grid-2">
+        <div>
+          <p><strong style="color:var(--text)">By Design</strong></p>
+          <ul class="doc-list">
+            <li>200k context window forces compaction — some context lost each cycle</li>
+            <li>File-based memory means no semantic search (yet)</li>
+            <li>LaunchAgents tied to macOS — not portable to Linux/Docker</li>
+            <li>Single gateway instance — no HA/redundancy</li>
+          </ul>
+        </div>
+        <div>
+          <p><strong style="color:var(--text)">Known Bugs / Issues</strong></p>
+          <ul class="doc-list">
+            <li>Context-persistence plugin has dedup bug (mitigated by disabling autoCapture)</li>
+            <li>Slack groupPolicy is "open" (security risk — needs tightening)</li>
+            <li>localStorage-based dashboards can't be updated remotely</li>
+            <li>Model switch without API key validation caused 2.5h outage (Feb 9)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SECTION 5: SYSTEM STATUS                    -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section" id="status">
+  <h2>System Status</h2>
+  <p class="subtitle">Current state of all components and services.</p>
+
+  <div class="grid-3">
+    <div class="card">
+      <h3><span class="status-dot green"></span> Gateway</h3>
+      <ul class="doc-list">
+        <li><strong>Port:</strong> 18789</li>
+        <li><strong>Model:</strong> anthropic/claude-opus-4-6</li>
+        <li><strong>Default:</strong> xai/grok-2</li>
+        <li><strong>Version:</strong> 2026.2.9</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="status-dot green"></span> Slack</h3>
+      <ul class="doc-list">
+        <li><strong>Mode:</strong> Socket</li>
+        <li><strong>Status:</strong> Connected</li>
+        <li><strong>App:</strong> A0AEDSF6KRN</li>
+        <li><strong>Channel:</strong> #ai-pmo</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="status-dot green"></span> Polling</h3>
+      <ul class="doc-list">
+        <li><strong>Email:</strong> Every 5 min ✓</li>
+        <li><strong>Calendar:</strong> Every 15 min ✓</li>
+        <li><strong>Todos:</strong> Every 30 min ✓</li>
+        <li><strong>Agents:</strong> 3 LaunchAgents</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="status-dot green"></span> Supabase</h3>
+      <ul class="doc-list">
+        <li><strong>Project:</strong> mmwbiogqmgmtxboipyko</li>
+        <li><strong>Tables:</strong> todos, kanban_items, notes, stream_items</li>
+        <li><strong>Auth:</strong> Publishable key (read/write)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="status-dot green"></span> Vercel</h3>
+      <ul class="doc-list">
+        <li><strong>greg-dashboard:</strong> Deployed ✓</li>
+        <li><strong>greg-ops:</strong> Deploying...</li>
+        <li><strong>Method:</strong> CLI (<code>vercel --prod</code>)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="status-dot green"></span> GitHub</h3>
+      <ul class="doc-list">
+        <li><strong>Repo:</strong> tony-vtkl/greg-workspace</li>
+        <li><strong>Last commit:</strong> 81f3803</li>
+        <li><strong>Status:</strong> Up to date ✓</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3>📋 Cron Jobs</h3>
+    <table class="flow-table">
+      <thead>
+        <tr><th>Job</th><th>Schedule</th><th>Type</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Session Maintenance</td>
+          <td>4x daily (6, 10, 14, 18 HST)</td>
+          <td>Task monitor</td>
+          <td><span class="tag green">Active</span></td>
+        </tr>
+        <tr>
+          <td>Uptime Check</td>
+          <td>Every 5 min</td>
+          <td>Health probe + streak tracking</td>
+          <td><span class="tag green">Active</span></td>
+        </tr>
+        <tr>
+          <td>Daily Backup</td>
+          <td>2:00 AM HST</td>
+          <td>Workspace backup</td>
+          <td><span class="tag yellow">Planned</span></td>
+        </tr>
+        <tr>
+          <td>Weekly Security Audit</td>
+          <td>Sunday 9:00 AM HST</td>
+          <td>Config & access review</td>
+          <td><span class="tag yellow">Planned</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Assessments ── -->
+<div class="section" id="assessments">
+  <h2>Strategic Assessments</h2>
+  <p class="subtitle">Analysis and evaluation of key technologies and their relationship to VtKl products</p>
+
+  <div class="doc-section">
+    <h4>⚡ OrgLoop vs Akira: Strengths, Weaknesses & Resolution</h4>
+    <p style="color: var(--text-dim); margin-bottom: 16px;">Feb 9, 2026 — Assessment based on Products Dashboard data and Charlie's manifesto implementation</p>
+
+    <h4 style="color: var(--green); margin-top: 24px;">OrgLoop Strengths (Validated)</h4>
+    <table>
+      <thead><tr><th>Strength</th><th>Evidence</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Deterministic event-driven polling</strong></td>
+          <td>3 polling scripts (email 5m, calendar 15m, todos 30m) → webhook → focused agent wake. Caught items heartbeat scanning missed.</td>
+          <td><span class="tag green">Proven</span></td>
+        </tr>
+        <tr>
+          <td><strong>Focused SOP per event type</strong></td>
+          <td>Each wake gets only relevant instructions. Less noise, better execution. MCP → Skills insight applied to org wiring.</td>
+          <td><span class="tag green">Proven</span></td>
+        </tr>
+        <tr>
+          <td><strong>Actor completion as event source (the loop 🧬)</strong></td>
+          <td>Claude Code finishes → supervisor wakes → relaunches. Key differentiator in Charlie's pipeline.</td>
+          <td><span class="tag green">Novel & Proven</span></td>
+        </tr>
+        <tr>
+          <td><strong>Platform-agnostic connector architecture</strong></td>
+          <td>Architecture supports it, but real-world connector diversity not yet tested.</td>
+          <td><span class="tag yellow">Sound, Unproven at Scale</span></td>
+        </tr>
+        <tr>
+          <td><strong>"Installable Organizations" via npm</strong></td>
+          <td>Compelling vision. Not yet built. Requires connector ecosystem maturity.</td>
+          <td><span class="tag yellow">Vision</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h4 style="color: var(--red); margin-top: 24px;">OrgLoop Weaknesses</h4>
+    <table>
+      <thead><tr><th>Weakness</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>No Profiling</strong></td>
+          <td>Routes events to actors but has no mechanism to understand <em>what matters</em> to the human. Executes, doesn't prioritize by perceived value.</td>
+        </tr>
+        <tr>
+          <td><strong>No Value Judgment</strong></td>
+          <td>Routes are deterministic (event A → actor B). All events treated equally — no Pareto engine to rank by value.</td>
+        </tr>
+        <tr>
+          <td><strong>No Preference Elicitation</strong></td>
+          <td>Never asks "what do you actually care about?" or learns from past decisions.</td>
+        </tr>
+        <tr>
+          <td><strong>No Feedback Loop on Outcomes</strong></td>
+          <td>Actor completes → next event fires. But no verification against intended outcomes, only task completion.</td>
+        </tr>
+        <tr>
+          <td><strong>No Self-Correction</strong></td>
+          <td>Agents don't learn from peer pressure or retrospectives. OrgLoop acknowledges this but doesn't solve it.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h4 style="color: var(--accent); margin-top: 24px;">How Akira Resolves Each Weakness</h4>
+    <table>
+      <thead><tr><th>OrgLoop Weakness</th><th>Akira Solution</th><th>Mechanism</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>No Profiling</td>
+          <td><span class="tag green">✅ Human Profiler Engine</span></td>
+          <td>PROFILER → PRIORITIZER → EXECUTOR → VERIFIER pipeline. Turns customer calls → structured priorities. Fills the gap Charlie can't scale.</td>
+        </tr>
+        <tr>
+          <td>No Value Judgment</td>
+          <td><span class="tag green">✅ Pareto Engine</span></td>
+          <td>High Priority ∩ Low Effort = Highest Value. Estimator calculates effort (SP × 2 × 1.7 drag), cross-references against priority.</td>
+        </tr>
+        <tr>
+          <td>No Preference Elicitation</td>
+          <td><span class="tag green">✅ Profiler + Hexagon of Success</span></td>
+          <td>Profiler models human preference. Hexagon provides 6 trade-off criteria. Together: "what does this person actually care about?"</td>
+        </tr>
+        <tr>
+          <td>No Feedback Loop</td>
+          <td><span class="tag green">✅ Show Me Don't Tell Me</span></td>
+          <td>Evidence-based verification catches hallucinated completion. See It Cycle every 30 min = continuous course correction.</td>
+        </tr>
+        <tr>
+          <td>No Self-Correction</td>
+          <td><span class="tag green">✅ Agent 215 + Promise/Stretch</span></td>
+          <td>Idle detection (no commits 2+ standups → intervention). Promise/Stretch prevents scope creep. Explicit failure handling replaces ego.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-top: 24px;">
+      <h4 style="color: var(--purple); margin-bottom: 12px;">🔑 The Core Insight</h4>
+      <p style="margin-bottom: 12px;"><strong>OrgLoop is a routing layer. Akira is a judgment layer.</strong></p>
+      <p style="margin-bottom: 12px; color: var(--text-dim);">OrgLoop solves <em>when</em> actors wake and <em>which</em> SOP they follow. Akira solves <em>what matters</em>, <em>how much effort it costs</em>, and <em>whether the outcome was actually achieved</em>.</p>
+      <p style="margin-bottom: 12px;">They're complementary:</p>
+      <ul style="margin-left: 20px; color: var(--text-dim);">
+        <li><strong style="color: var(--green);">OrgLoop</strong> = The nervous system (event routing, deterministic wiring)</li>
+        <li><strong style="color: var(--accent);">Akira</strong> = The brain (profiling, prioritization, verification, course correction)</li>
+        <li><strong style="color: var(--purple);">Jarvis</strong> = The hands (autonomous coding, implementation, deployment)</li>
+      </ul>
+      <pre style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-top: 16px; color: var(--green); font-size: 14px;">OrgLoop (Routes) → Akira (Profiles + Prioritizes + Verifies) → Jarvis (Executes)</pre>
+      <p style="margin-top: 12px; color: var(--yellow);"><strong>Bottom line:</strong> OrgLoop's weaknesses are precisely Akira's strengths. Charlie built the plumbing. Tony designed the brain. Together, they're the complete system.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SOPs — All 16 Standard Operating Procedures
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sops">
+  <h2>Standard Operating Procedures (SOPs)</h2>
+  <p style="color:var(--text-dim); margin-bottom: 24px;">16 focused procedures extracted from AGENTS.md, PROTOCOL.md, HEARTBEAT.md, and SOUL.md. Each SOP is injected as a launch prompt by the OrgLoop router — one job, one prompt, one wake.</p>
+
+  <!-- SOP 1: session-start -->
+  <div class="card">
+    <h3>1. session-start.md — Boot Protocol</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">New session begins or session restart detected. Routed by <code>session → session.start</code>.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Ensures Greg never responds without full context. Prevents the "operating at 10% capacity" failure that wastes Tony's time rebuilding context. Every session starts at full awareness.</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">1. Read memory/checkpoint.md
+2. Read memory/YYYY-MM-DD.md (today)
+3. Read memory/YYYY-MM-DD.md (yesterday — if today is sparse)
+4. Read SOUL.md
+5. Read USER.md
+6. Read PROTOCOL.md
+7. If main session (direct chat with Tony): Also read MEMORY.md
+8. If shared context (Discord, group chat): Do NOT read MEMORY.md
+9. Query Supabase todos for pending tasks
+
+Completion Criteria: All files read, checkpoint understood, ready to respond with full awareness.
+Failure Mode: Skipping this = operating at 10% capacity. Do NOT respond to user until done.</pre>
+    </details>
+  </div>
+
+  <!-- SOP 2: context-loss-recovery -->
+  <div class="card">
+    <h3>2. context-loss-recovery.md — Emergency Context Recovery</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Missing context detected, conversation doesn't make sense, or session restarted mid-task. Routed by <code>session → context.lost</code>.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Prevents the AI from guessing or hallucinating when context is lost. Instead of producing wrong answers confidently, it stops and recovers from saved state — protecting Tony's time and trust.</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">1. STOP responding immediately. Do not guess. Do not assume.
+2. Read memory/checkpoint.md — last known state
+3. Read memory/YYYY-MM-DD.md (today) — raw log
+4. Read memory/YYYY-MM-DD.md (yesterday) — if today is sparse
+5. Resume from last known state in checkpoint
+
+Prevention:
+- After every significant action: write to memory/YYYY-MM-DD.md
+- Every 15-30 min or major milestone: update memory/checkpoint.md
+- Watch context size: >100k = summarize, >150k = reset
+
+Failure Mode: Guessing without reading files = wasting Tony's time rebuilding context he already gave you.</pre>
+    </details>
+  </div>
+
+  <!-- SOP 3: memory-write -->
+  <div class="card">
+    <h3>3. memory-write.md — Persistence Protocol</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">After every significant action, every 15-30 minutes, or when context grows large. Routed by <code>session → context.large</code> and <code>greg-main → significant.action</code>.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Solves the #1 AI reliability problem: context loss. By writing state to files continuously, work survives session crashes, network changes, and context overflows. No work is ever lost.</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">After Every Significant Action → write to memory/YYYY-MM-DD.md:
+- What was done, result, decisions made, lessons learned
+
+Every 15-30 Minutes → update memory/checkpoint.md:
+- Current active task, recently completed, in-progress, pending, context notes
+
+Context Size Warnings:
+- >100k tokens: Summarize and shed older context
+- >150k tokens: Trigger reset — write everything to files first
+
+When Someone Says "Remember This":
+- Update file immediately. Not a mental note. A file.
+
+Memory Maintenance (Periodic):
+1. Read recent daily files
+2. Identify significant events/lessons
+3. Update MEMORY.md with distilled learnings
+4. Remove outdated info
+
+Completion Criteria: If the session dies right now, the next session can resume without losing anything.</pre>
+    </details>
+  </div>
+
+  <!-- SOP 4: email-triage -->
+  <div class="card">
+    <h3>4. email-triage.md — Email Processing</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Email poller detects new unread emails from key senders (every 5 minutes). Routed by <code>email-poll → new_email</code>.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Tony never misses an important email. Greg triages by sender priority, categorizes (action/FYI/needs-input), and either handles autonomously or alerts with a specific ask — not "you have mail."</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">Key Senders (Priority Order):
+1. Tony (tony@vtkl.ai) — Immediate. Read and act.
+2. Joana (joana@vtkl.ai) — Akira PMO dev. Likely needs response or deliverables.
+3. Victor (victor@vtkl.ai) — VtKl technical. May need routing or action.
+4. Alex (alex@vtkl.ai) — Admin/invoices. Check if payment action needed.
+5. Charlie — Architecture/OrgLoop. Review and assess.
+
+Steps:
+1. Read the email content
+2. Categorize: Action required / FYI / Needs Tony's input
+3. If action required AND within authority → do it
+4. If needs Tony's input → alert with specific ask
+5. If FYI → log to daily memory, no alert unless interesting
+6. Update heartbeat-state.json with check timestamp
+
+External Action Gate: Replying to emails = ask Tony first. Reading = safe.
+Completion Criteria: Every new email categorized and either acted on, escalated, or logged.</pre>
+    </details>
+  </div>
+
+  <!-- SOP 5: calendar-alert -->
+  <div class="card">
+    <h3>5. calendar-alert.md — Event Reminders</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Calendar poller detects event within next 2 hours (every 15 minutes). Routed by <code>calendar-poll → upcoming_event</code>.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">No meeting ever catches Tony off guard. Smart filtering (skip all-day events, skip events Tony created, only alert at <2h) means alerts are timely and relevant, not noisy.</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">Steps:
+1. Check event details: title, time, attendees, location/link
+2. If event is <2 hours away → alert Tony with summary
+3. If event is 2-4 hours away → note it, alert at next check if still <2h
+4. Include: meeting link, attendee names, any prep needed
+
+Alert Format:
+📅 [Event Name] in [X hours/minutes]
+Time: [time] | With: [attendees] | Link: [meeting link] | Prep: [items]
+
+Don't Alert: Events Tony created himself, all-day events, events >4h away.
+Completion Criteria: Tony knows about upcoming events before they surprise him.</pre>
+    </details>
+  </div>
+
+  <!-- SOP 6: todo-escalate -->
+  <div class="card">
+    <h3>6. todo-escalate.md — Overdue Item Escalation</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Todos poller detects overdue or high-priority items (every 30 minutes). Routed by <code>todos-poll → overdue_item</code>.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Nothing falls through the cracks. Overdue items are flagged, and Greg applies the Pareto engine (High Priority ∩ Low Effort = do it now) to handle what he can and escalate what needs Tony's decision.</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">Steps:
+1. Query Supabase for incomplete todos
+2. Check for: Overdue (past due date), High priority but stale (>24h), Blocked (unresolved dependency)
+3. For each flagged item:
+   - Can I unblock it myself? → Do it
+   - Needs Tony's decision? → Alert with specific ask
+   - Waiting on external? → Note the wait, check again next cycle
+
+Priority Framework:
+- High Priority ∩ Low Effort = do it now
+- High Priority ∩ High Effort = schedule it, alert Tony
+- Low Priority = defer, don't alert
+
+Completion Criteria: No overdue items left unaddressed. Blocked items have a next action or escalation.</pre>
+    </details>
+  </div>
+
+  <!-- SOP 7: slack-triage -->
+  <div class="card">
+    <h3>7. slack-triage.md — Slack Message Handling</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Slack DM or @mention received in VtKl workspace (real-time via socket). Routed by <code>slack → direct_message</code> or <code>slack → channel_mention</code>.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Greg participates in Slack like a real team member — responsive to DMs, helpful on mentions, quiet when the conversation doesn't need him. Tony gets DM priority; team gets timely support.</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">DM from Tony → Priority: Immediate. Read, understand, act or respond.
+DM from Team Member → Priority: High. Respond helpfully; route to Tony if needed.
+Channel @mention → Priority: Medium. Respond if you add value.
+Channel Message (no mention) → Priority: Low. Follow group chat rules.
+
+Group Chat Rules:
+- Respond when: Directly useful, genuinely funny, correcting misinformation
+- Stay silent when: Casual banter, someone already answered, your response would be "nice"
+- React when: Acknowledgment without cluttering (👍, 😂, 🤔, ✅)
+- One reaction max per message
+
+Completion Criteria: Every DM responded to. Mentions addressed. Channels participated in appropriately.</pre>
+    </details>
+  </div>
+
+  <!-- SOP 8: deploy-verify -->
+  <div class="card">
+    <h3>8. deploy-verify.md — Post-Deploy QA</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Any deploy completes (Vercel, npm publish). Routed by <code>greg-main → deploy.completed</code> and chained from <code>task-completed.md</code>.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Eliminates the "deployed but broken" failure. Born from the Feb 8 disaster where Greg declared deployments complete without testing. Now: screenshot or it didn't happen.</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">Steps:
+1. Open browser to the LIVE URL (not localhost, not preview)
+2. Take a screenshot
+3. Check browser console for errors
+4. Test the main functionality that was changed
+5. Only THEN report status to Tony
+
+Evidence Required:
+- Screenshot of the live page
+- Console output (clean or errors noted)
+- Functional test result
+
+Completion Criteria: "Deployed" means: live, screenshotted, console-clean, functionality tested.
+Failure Mode: "Deployed" without verification = a lie. This caused the Feb 8 disaster.
+
+Common Deploys:
+- Greg Dashboard: cd greg-dashboard && vercel --prod --yes
+- Ops Dashboard: cd greg-ops-dashboard && vercel --prod --yes
+- ⚠️ Git push ≠ deploy. Must run vercel --prod separately.</pre>
+    </details>
+  </div>
+
+  <!-- SOP 9: done-evidence -->
+  <div class="card">
+    <h3>9. done-evidence.md — Evidence Before "Done"</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">About to tell Tony something is complete. Routed by <code>greg-main → task.completing</code>.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Forces proof before claiming completion. Akira's "Show Me Don't Tell Me" principle in practice. Prevents the pattern where AI says "done" without testing — the root cause of trust erosion.</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">Pre-Send Checklist:
+1. Did I test it myself? (not just read the code)
+2. Did I see it working? (screenshot, output, proof)
+3. Can I show evidence? (if no → it's not done)
+
+Evidence Types: Screenshot, command output, live URL, test results.
+
+Completion Criteria: Evidence in hand BEFORE you type the word "done."
+Failure Mode: "Almost done" = not done. "Should work" = didn't test. "I think it's good" = no evidence.
+
+Screenshot or it didn't happen.</pre>
+    </details>
+  </div>
+
+  <!-- SOP 10: sub-agent-verify -->
+  <div class="card">
+    <h3>10. sub-agent-verify.md — Sub-Agent Output Verification</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Any sub-agent (10x Coder, Tech Analyst, spawned session) reports "done." Routed by <code>greg-main → sub-agent.completed</code>.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">AI agents supervising other AI agents need verification protocols. Trust but verify. Sub-agent completion is the starting point for review, not the end. Prevents shipping broken work from delegated tasks.</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">Steps:
+1. Read the actual code/output they produced
+2. Look for obvious errors: syntax, typos, wrong variables, missing imports
+3. Test it yourself — run it, deploy it, check the result
+4. Only THEN report to Tony
+
+Key Principle: Agent said "done" ≠ actually done. Their completion is YOUR starting point for verification.
+
+Completion Criteria: Personally read the output, personally tested it, can show evidence it works.
+Failure Mode: Trusting sub-agent output without verification = shipping broken work = Tony's trust erodes.</pre>
+    </details>
+  </div>
+
+  <!-- SOP 11: config-change -->
+  <div class="card">
+    <h3>11. config-change.md — Configuration Change Prerequisites</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Any gateway config change, especially model/provider switches. Routed by <code>greg-main → config.changing</code>. Priority: CRITICAL.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Born from the Feb 8 Grok model switch disaster (2.5h outage). Ensures every config change has prerequisites verified, rollback plan ready, and post-change monitoring. Prevents self-inflicted outages.</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">Steps:
+1. Verify API credentials exist for the new provider
+2. Test credentials work — make a test API call
+3. Record current config — have a rollback ready
+4. Apply the change
+5. Monitor for 5 minutes after restart
+
+Pre-Change Checklist:
+☐ New provider's API key is in auth.profiles
+☐ I've tested the key works
+☐ I know the current config values (rollback plan)
+☐ I've told Tony what I'm about to change
+
+Failure Mode: Changing model without API key = 100% guaranteed failure.
+This broke the gateway for 2.5 hours on Feb 8. Tony had to fix it manually.
+Prerequisites before changes. Always.</pre>
+    </details>
+  </div>
+
+  <!-- SOP 12: external-action-gate -->
+  <div class="card">
+    <h3>12. external-action-gate.md — External Action Safety Gate</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">About to do something that leaves the machine (email, tweet, message to non-Tony). Routed by <code>greg-main → external.action</code>.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">The trust boundary. Greg has access to Tony's entire digital life. This SOP ensures outbound actions always have explicit or pre-authorized approval. Bold internally, cautious externally.</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">Safe to Do Freely (No Permission Needed):
+- Read files, explore, organize, learn
+- Search the web, check calendars/email (reading only)
+- Work within workspace, commit/push changes
+- Update documentation
+
+Ask Tony First:
+- Sending emails, tweets, social media posts
+- Any public-facing action or anything that leaves the machine
+- Anything you're uncertain about
+
+Group Chat Rules:
+- You're a participant, not Tony's voice or proxy
+- Don't share Tony's private information
+- Quality > quantity
+
+Safety: Don't exfiltrate data. trash > rm. Private things stay private.
+Gate: "Would Tony want me to do this without asking?" If uncertain → ask.</pre>
+    </details>
+  </div>
+
+  <!-- SOP 13: escalation -->
+  <div class="card">
+    <h3>13. escalation.md — Alert vs. Handle Autonomously</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Something needs attention and Greg is deciding whether to bother Tony. Routed by <code>greg-main → needs.escalation</code>.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">The Chief of Staff's core skill: knowing when to handle it and when to escalate. Reduces Tony's cognitive load by filtering noise while ensuring critical items surface. The ownership test: "Am I alerting because Tony needs to know, or because I want someone else to decide?"</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">Handle Autonomously (Don't Alert):
+- Routine system checks, file organization, documentation updates
+- Git commits/pushes, reading email/Slack/calendar, background research
+- Items you can fully resolve without Tony's input
+
+Alert Tony (With Specific Ask):
+- Urgent email needing his decision
+- Calendar conflict or meeting <2h away
+- Blocked initiative needing direction
+- External action needing approval
+
+Alert Format:
+Bad: "You have new emails"
+Good: "Joana sent updated Estimator code. Should I review and deploy, or do you want to look first?"
+
+Always include: What happened, what you recommend, what you need from Tony.
+Never Alert: Late night (11pm-8am) unless urgent, when Tony is in a meeting, for routine status.
+
+The Ownership Test: "Am I alerting because Tony needs to know, or because I want someone else to decide?"</pre>
+    </details>
+  </div>
+
+  <!-- SOP 14: morning-standup -->
+  <div class="card">
+    <h3>14. morning-standup.md — Brain Dump Processing</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Morning time block (6-10am HST) or Tony sends a brain dump. Routed by <code>heartbeat → morning_block</code>.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Tony's 3-6am hypnagogic insights are his highest-value outputs — raw strategic clarity. This SOP captures, categorizes, routes, and executes on those insights before they fade. Closes the gap between Tony's insight speed and execution capacity.</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">Tony's Workflow: 3-6am clarity sessions (hypnagogic state) → index cards → morning brain dump with Greg.
+
+Steps:
+1. Capture: Receive Tony's brain dump (voice, text, or cards)
+2. Categorize: Initiative (Akira/Exec.AI/VtKl/Personal) + Type (action/decision/insight/question) + Priority
+3. Route:
+   - Actions I can do → do them or add to my task list
+   - Actions for team → assign to appropriate person/agent
+   - Decisions Tony needs to make → queue with context
+   - Insights → capture in MEMORY.md or INITIATIVES.md
+4. Execute: Start on highest-priority items immediately
+5. Report back: Summarize what was captured and what's in motion
+
+Prioritization: High Priority ∩ Low Effort = do it now (Pareto engine)
+Failure Mode: Missing the morning standup = not doing my job. I should INITIATE this, not wait.</pre>
+    </details>
+  </div>
+
+  <!-- SOP 15: initiative-check -->
+  <div class="card">
+    <h3>15. initiative-check.md — Initiative Outcome Tracking</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">Heartbeat cycle, 2-4x daily rotation. Routed by <code>heartbeat → initiative_cycle</code>.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">The accountability heartbeat. For each initiative: "Is it closer to its outcome (revenue or engagement) than last check?" Activity without outcome = failure. Ensures Greg's ownership isn't just task completion but actual results.</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">The Question: For each active initiative — is it closer to its outcome than last check?
+
+Active Initiatives:
+| Initiative | Target Outcome | What to Check |
+| Akira PMO  | Revenue (sellable product) | Code progress, Joana's work, blockers |
+| Exec.AI    | Revenue | Design progress, scope definition |
+
+Steps:
+1. Read INITIATIVES.md for current state
+2. Assess each: Progress, Blockers, Next action
+3. If stalled >24h → escalate with recommendation
+4. If progressing → log status, no alert
+5. Update INITIATIVES.md if status changed
+
+Ownership Lens: Activity without outcome = failure. The question isn't "did I check?" — it's "is the initiative moving toward revenue?"</pre>
+    </details>
+  </div>
+
+  <!-- SOP 16: task-completed -->
+  <div class="card">
+    <h3>16. task-completed.md — Completion Loop 🧬</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <strong style="color:var(--accent)">Trigger:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">A task just completed. Fired by <code>completion-hook.sh</code>. Routed by <code>completion-hook → task.completed</code>. This is the 🧬 — the OrgLoop itself.</p>
+      </div>
+      <div>
+        <strong style="color:var(--green)">Business Value:</strong>
+        <p style="color:var(--text-dim); margin-top:4px;">The self-sustaining engine. When work finishes, the system automatically chains to the next action — no human glue needed. Deploy finishes → verify. Sub-agent finishes → review. Email triaged → create todos. The org loops.</p>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-weight:600; margin-bottom:8px;">View Full SOP</summary>
+      <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.82em; overflow-x:auto; color:var(--text-dim); white-space:pre-wrap; line-height:1.6">Steps:
+1. Log the completion → memory/YYYY-MM-DD.md (what, result, artifacts)
+2. Update checkpoint → move item from "In Progress" to "Completed"
+3. Check chaining table:
+
+   | Completed Task        | → Next Action |
+   | Deploy                | → deploy-verify.md (screenshot, test) |
+   | Sub-agent finished    | → sub-agent-verify.md (read, test, report) |
+   | Email triage          | → create todos if action items found |
+   | Todo resolved         | → check for more high-priority items |
+   | Code change           | → deploy or commit+push |
+   | Initiative milestone  | → update INITIATIVES.md, alert Tony |
+   | Config change         | → monitor 5 min per config-change.md |
+   | Morning standup       | → route items to agents/actions |
+
+4. If no chain needed → check pending queue, pick highest priority
+5. If nothing pending → return to idle
+
+The Loop 🧬: Task completes → log + checkpoint → chain → completes → log + checkpoint → ...
+The system sustains itself through continuous cycles.</pre>
+    </details>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     BUSINESS OVERVIEW — Manifesto × Delivered Work Cross-Reference
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="business-overview">
+  <h2>Business Overview — OrgLoop Manifesto × Akira AI PMO</h2>
+  <p style="color:var(--text-dim); margin-bottom: 24px;">Cross-reference of Charlie Hulcher's "Organization as Code" manifesto with Greg's delivered implementation. Shows how Akira and the AI PMO engine operationalize, complement, and extend the manifesto's vision.</p>
+
+  <div class="card">
+    <h3>🧬 The Core Thesis</h3>
+    <p><strong style="color:var(--accent)">Manifesto:</strong> "You don't need reliable actors if you have a reliable system around them." AI agents are probabilistic — design a deterministic layer around them so every meaningful state change triggers an appropriate, focused response.</p>
+    <p style="margin-top:12px"><strong style="color:var(--green)">Delivered:</strong> Greg's OrgLoop implementation wraps the OpenClaw agent in a deterministic event-routing layer. 7 sources emit events → <code>orgloop.yaml</code> declares 19 routes → <code>orgloop-router.sh</code> dynamically selects the correct SOP → actor wakes with one job, one prompt, one lifetime. The agent doesn't decide what to do — the system tells it.</p>
+  </div>
+
+  <div class="card">
+    <h3>📐 The Five Primitives — Implementation Status</h3>
+    <table>
+      <thead><tr><th>Primitive</th><th>Manifesto Definition</th><th>Greg Implementation</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Sources</strong></td>
+          <td>Things that emit events (GitHub, Linear, etc.)</td>
+          <td>5 connectors: <code>email.sh</code>, <code>calendar.sh</code>, <code>todos.sh</code>, <code>slack.sh</code>, <code>completion.sh</code> — each with <code>poll|test|schema</code> contract</td>
+          <td><span class="tag green">COMPLETE</span></td>
+        </tr>
+        <tr>
+          <td><strong>Actors</strong></td>
+          <td>Things that do work when woken (agents, humans)</td>
+          <td>2 actors: <code>greg-main</code> (primary session), <code>greg-isolated</code> (completion loop). OpenClaw as the actor runtime.</td>
+          <td><span class="tag green">COMPLETE</span></td>
+        </tr>
+        <tr>
+          <td><strong>Routes</strong></td>
+          <td>Declarative wiring: source X → event Y → actor Z with context C</td>
+          <td><code>orgloop.yaml</code> — 19 routes with priority levels. <code>orgloop-router.sh</code> reads YAML at runtime for dynamic selection.</td>
+          <td><span class="tag green">COMPLETE</span></td>
+        </tr>
+        <tr>
+          <td><strong>Transforms</strong></td>
+          <td>Pipeline steps: filter noise, scan for injection, rate-limit</td>
+          <td>Not yet implemented as standalone pipeline steps. Some filtering logic exists within connectors (e.g., dedup by event ID, key sender filter).</td>
+          <td><span class="tag yellow">PARTIAL</span></td>
+        </tr>
+        <tr>
+          <td><strong>Loggers</strong></td>
+          <td>Passive observers: every event captured for debugging/audit</td>
+          <td><code>logs/router.log</code> captures every routing decision. Daily memory files (<code>memory/YYYY-MM-DD.md</code>) log significant actions. Uptime tracking in <code>uptime/</code>.</td>
+          <td><span class="tag green">COMPLETE</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>🧬 The Loop — Actor Completion as Event</h3>
+    <p><strong style="color:var(--accent)">Manifesto:</strong> "When an actor finishes work, that completion is itself an event, routed back into the system to trigger the next actor." The dev agent is both actor and source. The org sustains itself through continuous cycles.</p>
+    <p style="margin-top:12px"><strong style="color:var(--green)">Delivered:</strong> <code>completion-hook.sh</code> fires <code>task.completed</code> events back through <code>orgloop-router.sh</code>. The <code>task-completed.md</code> SOP includes a chaining table:</p>
+    <pre style="background:var(--surface-2); padding:12px; border-radius:var(--radius); margin-top:8px; font-size:0.85em; overflow-x:auto; color:var(--text-dim)">deploy       → deploy-verify.md (screenshot, test, evidence)
+sub-agent    → sub-agent-verify.md (read output, verify)
+email-triage → create todos if action items found
+todo-resolved→ pick next highest-priority item
+code-change  → deploy or commit+push
+config-change→ monitor 5 min per config-change.md</pre>
+    <p style="margin-top:8px; color:var(--text-dim)">This is the 🧬 — the system runs itself through event→process→complete→next event cycles.</p>
+  </div>
+
+  <div class="card">
+    <h3>📋 Launch Prompts — Focused Context Beats Overwhelming Context</h3>
+    <p><strong style="color:var(--accent)">Manifesto:</strong> "Route-paired SOPs mean your actors get sharper as your org grows more complex, not duller. Twenty routes means twenty focused instructions, not one bloated system prompt."</p>
+    <p style="margin-top:12px"><strong style="color:var(--green)">Delivered:</strong> 16 focused SOPs in <code>scripts/sops/</code>, each extracted from process MDs (AGENTS.md, PROTOCOL.md, HEARTBEAT.md, SOUL.md):</p>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:12px; font-size:0.85em;">
+      <div><code>session-start.md</code> — Boot protocol</div>
+      <div><code>context-loss-recovery.md</code> — STOP and recover</div>
+      <div><code>email-triage.md</code> — Email processing</div>
+      <div><code>calendar-alert.md</code> — Event reminders</div>
+      <div><code>todo-escalate.md</code> — Overdue items</div>
+      <div><code>slack-triage.md</code> — Message handling</div>
+      <div><code>deploy-verify.md</code> — Post-deploy QA</div>
+      <div><code>done-evidence.md</code> — Evidence before "done"</div>
+      <div><code>sub-agent-verify.md</code> — Verify sub-agent output</div>
+      <div><code>config-change.md</code> — Prerequisites check</div>
+      <div><code>external-action-gate.md</code> — Ask before sending</div>
+      <div><code>escalation.md</code> — Alert vs handle decision</div>
+      <div><code>morning-standup.md</code> — Brain dump processing</div>
+      <div><code>initiative-check.md</code> — Outcome tracking</div>
+      <div><code>memory-write.md</code> — Persistence protocol</div>
+      <div><code>task-completed.md</code> — Completion chaining</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🪜 The Autonomy Ladder — Where Greg Operates</h3>
+    <p><strong style="color:var(--accent)">Manifesto defines 4 levels:</strong></p>
+    <table>
+      <thead><tr><th>Level</th><th>Description</th><th>Greg's Position</th></tr></thead>
+      <tbody>
+        <tr><td>1. Manual</td><td>Human does everything, AI assists</td><td style="color:var(--text-dim)">Past this</td></tr>
+        <tr><td>2. Copilot</td><td>AI does work, human reviews everything</td><td style="color:var(--text-dim)">Past this</td></tr>
+        <tr><td>3. Supervised</td><td>AI works autonomously, human monitors</td><td><span class="tag green">CURRENT</span> — Polling runs autonomously, SOPs guide behavior, Tony monitors via dashboards</td></tr>
+        <tr><td>4. Autonomous</td><td>System runs itself, human observes/steers</td><td><span class="tag yellow">TARGET</span> — Completion loop enables self-sustaining cycles; external-action-gate SOP still requires human approval for outbound actions</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>🔗 How Akira Complements & Extends OrgLoop</h3>
+    <p>Charlie's manifesto explicitly acknowledges a gap: OrgLoop provides the <em>plumbing</em> (deterministic routing) but not the <em>brain</em> (deciding what matters). Akira fills that gap.</p>
+    <table style="margin-top:12px">
+      <thead><tr><th>Capability</th><th>OrgLoop (Charlie)</th><th>Akira AI PMO (Tony)</th><th>Combined</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Prioritization</strong></td>
+          <td>Routes have priority levels but no business logic</td>
+          <td>Estimator scores effort/value → Pareto engine (High Priority ∩ Low Effort = Highest Value)</td>
+          <td>Akira decides WHAT matters → OrgLoop ensures it GETS DONE</td>
+        </tr>
+        <tr>
+          <td><strong>Methodology</strong></td>
+          <td>No methodology — pure infrastructure</td>
+          <td>Auto Pilot Projects (APP): "See It Cycle", Promise/Stretch backlogs, 12hr sprints</td>
+          <td>APP methodology drives the objectives → OrgLoop executes the cycles</td>
+        </tr>
+        <tr>
+          <td><strong>Verification</strong></td>
+          <td>Loggers capture what happened</td>
+          <td>"Show Me Don't Tell Me" — evidence-based verification protocol</td>
+          <td>OrgLoop logs → Akira verifies outcomes match objectives</td>
+        </tr>
+        <tr>
+          <td><strong>Resource Management</strong></td>
+          <td>Actors are interchangeable modules</td>
+          <td>Portfolio Manager tracks resources, milestones, cash flow</td>
+          <td>Akira allocates resources → OrgLoop dispatches to actors</td>
+        </tr>
+        <tr>
+          <td><strong>The Profiler Gap</strong></td>
+          <td>Not addressed — needs external priorities</td>
+          <td>Tony's hypnagogic workflow → Exec.AI captures insights → feeds priority queue</td>
+          <td>The full stack: PROFILER (Exec.AI) → PRIORITIZER (Akira) → EXECUTOR (OrgLoop) → VERIFIER (Both)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>📊 Manifesto Claims vs Reality</h3>
+    <table>
+      <thead><tr><th>Manifesto Claim</th><th>Evidence</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>"Nothing gets dropped" — every state change triggers a response</td>
+          <td>3 polling scripts cover email (5min), calendar (15min), todos (30min). Slack is real-time. Completion hook chains next actions.</td>
+          <td><span class="tag green">PROVEN</span></td>
+        </tr>
+        <tr>
+          <td>"Actors stay focused" — one job, one SOP, one lifetime</td>
+          <td>16 SOPs, each wake gets exactly one relevant SOP via dynamic router. No bloated system prompts per event.</td>
+          <td><span class="tag green">PROVEN</span></td>
+        </tr>
+        <tr>
+          <td>"It scales declaratively" — add connector, add route, done</td>
+          <td>Connector contract (poll|test|schema) + orgloop.yaml means adding a source is: write connector → add YAML entry → create SOP.</td>
+          <td><span class="tag green">PROVEN</span></td>
+        </tr>
+        <tr>
+          <td>"Installable autonomous organizations" via npm</td>
+          <td>Not implemented. Connectors are local shell scripts, not npm packages. The architecture supports it but the ecosystem doesn't exist yet.</td>
+          <td><span class="tag yellow">UNPROVEN</span></td>
+        </tr>
+        <tr>
+          <td>"Platform-agnostic" — swap connectors, keep routes</td>
+          <td>Connector contract is platform-agnostic in design. Haven't tested swapping (e.g., Gmail→Outlook) but architecture supports it.</td>
+          <td><span class="tag yellow">SOUND BUT UNTESTED</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>🏗️ The Full Stack — PROFILER → PRIORITIZER → EXECUTOR → VERIFIER</h3>
+    <pre style="background:var(--surface-2); padding:16px; border-radius:var(--radius); font-size:0.85em; overflow-x:auto; color:var(--text-dim); line-height:1.8">
+<span style="color:var(--purple)">PROFILER</span>          <span style="color:var(--accent)">PRIORITIZER</span>       <span style="color:var(--green)">EXECUTOR</span>           <span style="color:var(--yellow)">VERIFIER</span>
+(Exec.AI)          (Akira PMO)        (OrgLoop + Greg)    (Both)
+    │                   │                   │                  │
+    ▼                   ▼                   ▼                  ▼
+Tony's 3-6am    →  Estimator scores  →  orgloop.yaml    →  deploy-verify.md
+insights            effort/value        routes events       done-evidence.md
+                                        to actors           sub-agent-verify.md
+Index cards     →  Portfolio Mgr     →  SOPs guide       →  "Show Me Don't
+capture ideas      tracks resources     focused work         Tell Me" protocol
+                                                            
+Brain dumps     →  Pareto engine:    →  Completion hook  →  Akira validates
+via standup        Hi Pri ∩ Lo Eff      chains next          outcomes match
+                   = Highest Value      action 🧬            objectives</pre>
+    <p style="margin-top:12px"><strong style="color:var(--text)">The unlock:</strong> Jarvis (Charlie/Kindo) executes code perfectly but doesn't decide what matters. Akira prioritizes but needs human-supplied priorities. OrgLoop is the plumbing that connects them. Exec.AI automates the Profiler function. Together: fully autonomous from insight to shipped result.</p>
+  </div>
+
+  <div class="card">
+    <h3>📁 Delivered Artifacts — Complete Inventory</h3>
+    <table>
+      <thead><tr><th>Category</th><th>Files</th><th>Commit</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Declarative Config</strong></td><td><code>scripts/orgloop.yaml</code> — 7 sources, 2 actors, 19 routes, chain table, defaults</td><td><code>1c77b17</code></td></tr>
+        <tr><td><strong>Dynamic Router</strong></td><td><code>scripts/orgloop-router.sh</code> — reads YAML, matches routes, injects SOPs</td><td><code>84a3c51</code></td></tr>
+        <tr><td><strong>Connectors</strong></td><td><code>scripts/connectors/{email,calendar,todos,slack,completion}.sh</code> — standard contract</td><td><code>13b3b1e</code></td></tr>
+        <tr><td><strong>SOPs</strong></td><td><code>scripts/sops/*.md</code> — 16 focused procedures</td><td><code>81f3803</code></td></tr>
+        <tr><td><strong>Completion Loop</strong></td><td><code>scripts/completion-hook.sh</code> + <code>sops/task-completed.md</code></td><td><code>ee66529</code></td></tr>
+        <tr><td><strong>Polling Infrastructure</strong></td><td><code>scripts/{email,calendar,todos}-poll.sh</code> + LaunchAgent plists</td><td><code>81f3803</code></td></tr>
+        <tr><td><strong>Route Map</strong></td><td><code>scripts/sops/ROUTES.md</code> — human-readable reference</td><td><code>81f3803</code></td></tr>
+        <tr><td><strong>Documentation</strong></td><td><code>connectors/README.md</code> — connector contract spec</td><td><code>13b3b1e</code></td></tr>
+        <tr><td><strong>Dashboards</strong></td><td>Ops Dashboard updated with OrgLoop status + this Business Overview</td><td><code>9786e3a</code>+</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:12px; color:var(--text-dim)">All code on GitHub: <code>tony-vtkl/greg-workspace</code>. Ops Dashboard on Vercel: <code>greg-ops-dashboard.vercel.app</code>.</p>
+  </div>
+</div>
+
+</main>
+
+<div class="last-updated">
+  Last updated: <span id="last-updated-time"></span> · Greg Ops Dashboard v1.0 · Built by Greg 🎯
+</div>
+
+<script>
+// ── Navigation ──
+document.querySelectorAll('nav a').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelectorAll('nav a').forEach(l => l.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    link.classList.add('active');
+    document.getElementById(link.dataset.section).classList.add('active');
+    history.replaceState(null, '', link.getAttribute('href'));
+  });
+});
+
+// Handle direct hash navigation
+if (window.location.hash) {
+  const target = window.location.hash.substring(1);
+  const link = document.querySelector(`nav a[data-section="${target}"]`);
+  if (link) link.click();
+}
+
+// ── Clock ──
+function updateClock() {
+  const now = new Date();
+  const hst = now.toLocaleString('en-US', { timeZone: 'Pacific/Honolulu', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  document.getElementById('header-time').textContent = `HST ${hst}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── Last Updated ──
+document.getElementById('last-updated-time').textContent =
+  new Date().toLocaleString('en-US', { timeZone: 'Pacific/Honolulu', dateStyle: 'medium', timeStyle: 'short' });
+
+// ── Changelog Data ──
+const CHANGELOG = [
+  {
+    date: '2026-02-10T12:00:00Z',
+    type: 'added',
+    title: 'SOPs tab — All 16 Standard Operating Procedures documented',
+    body: 'New dashboard tab with all 16 SOPs in full detail. Each SOP includes: trigger description (which source/event activates it), business-oriented explanation of purpose and value, and the complete procedure in an expandable section. SOPs organized by category: session lifecycle, polling sources, actor self-governance, heartbeat cycles, and the completion loop.'
+  },
+  {
+    date: '2026-02-10T11:20:00Z',
+    type: 'added',
+    title: 'Business Overview tab — Manifesto × Delivered Work cross-reference',
+    body: 'New dashboard tab mapping every element of Charlie\'s OrgLoop manifesto to Greg\'s delivered implementation. Covers: Five Primitives status, The Loop (completion chaining), Launch Prompts (16 SOPs), Autonomy Ladder positioning, Akira complement analysis, Manifesto Claims vs Reality, and the full PROFILER→PRIORITIZER→EXECUTOR→VERIFIER stack.'
+  },
+  {
+    date: '2026-02-10T11:15:00Z',
+    type: 'added',
+    title: 'Gap 4: Standardized connector pattern',
+    body: '5 connectors (email, calendar, todos, slack, completion) implementing standard contract: poll|test|schema. Each is a self-contained module that emits events through the dynamic router. Documented in connectors/README.md. Commit: 13b3b1e.'
+  },
+  {
+    date: '2026-02-10T11:12:00Z',
+    type: 'added',
+    title: 'Gap 3: Slack event routing through OrgLoop',
+    body: 'slack-event-router.sh bridges real-time Slack socket events into the OrgLoop pipeline. Same SOP treatment as polling sources. Commit: 13b3b1e.'
+  },
+  {
+    date: '2026-02-10T11:08:00Z',
+    type: 'added',
+    title: 'Gap 2: Dynamic OrgLoop router',
+    body: 'orgloop-router.sh reads orgloop.yaml at runtime, matches source+event to route, loads correct SOP, fires webhook. All 4 polling scripts refactored to use router (legacy fallback preserved). Routing decisions logged to logs/router.log. Commit: 84a3c51.'
+  },
+  {
+    date: '2026-02-10T11:00:00Z',
+    type: 'added',
+    title: 'Gap 1: orgloop.yaml — declarative routing config',
+    body: 'Single source of truth for all event→SOP→actor routing. 7 sources, 2 actors, 19 routes with priority levels and completion chain table. Schema follows Charlie\'s manifesto: sources/actors/routes/defaults. Commit: 1c77b17.'
+  },
+  {
+    date: '2026-02-10T00:32:00Z',
+    type: 'added',
+    title: 'OrgLoop-style SOP routing layer deployed',
+    body: '15 focused SOPs extracted from AGENTS.md, PROTOCOL.md, HEARTBEAT.md, and SOUL.md into scripts/sops/. ROUTES.md declares event→SOP wiring. Polling scripts now inject relevant SOP as launch prompt (email→email-triage.md, calendar→calendar-alert.md, todos→todo-escalate.md). Implements Charlie Hulcher\'s OrgLoop "route carries the launch prompt" pattern. Committed 81f3803, pushed to GitHub.'
+  },
+  {
+    date: '2026-02-09T23:58:00Z',
+    type: 'fixed',
+    title: 'Disabled context-persistence autoCapture',
+    body: 'Set plugins.entries.context-persistence.config.autoCapture: false to stop runaway duplication of pendingVerifications (52+ per compaction cycle). Plugin remains enabled for context injection on session start.'
+  },
+  {
+    date: '2026-02-09T23:48:00Z',
+    type: 'fixed',
+    title: 'Fixed Slack connection — dual enable required',
+    body: 'Discovered gateway auto-generates plugins.entries.slack.enabled: false. Must set BOTH channels.slack.enabled: true AND plugins.entries.slack.enabled: true. Slack now connected via Socket Mode.'
+  },
+  {
+    date: '2026-02-09T23:30:00Z',
+    type: 'added',
+    title: 'Slack integration activated',
+    body: 'Configured Slack with bot token (xoxb-...) and app token (xapp-...) from Joana. Socket mode active. Sent team intro to #ai-pmo channel. App ID: A0AEDSF6KRN.'
+  },
+  {
+    date: '2026-02-09T21:30:00Z',
+    type: 'added',
+    title: 'Webhook endpoint enabled',
+    body: 'Enabled hooks.enabled: true with dedicated hook token (separate from gateway auth). Tested /hooks/agent endpoint — returns ok. All 3 polling scripts updated with correct token.'
+  },
+  {
+    date: '2026-02-09T20:00:00Z',
+    type: 'added',
+    title: 'Event-driven polling system deployed',
+    body: 'Created 3 polling scripts (email-poll.sh, calendar-poll.sh, todos-poll.sh) with macOS LaunchAgents. Based on Charlie Hulcher\'s "Organization as Code" architecture. Replaces heartbeat-based broad scanning.'
+  },
+  {
+    date: '2026-02-09T19:30:00Z',
+    type: 'removed',
+    title: 'Old Context Persistence Middleware removed',
+    body: 'Backed up 5 files to ~/.openclaw/backups/middleware-2026-02-09/ then deleted: middleware-test/, multi-agent-context-middleware.md, multi-agent-context-README.md, context-middleware-design.md, multi-agent-middleware-implementation.ts.'
+  },
+  {
+    date: '2026-02-09T18:00:00Z',
+    type: 'fixed',
+    title: 'Dashboard variable rename (stream.html, todos.html)',
+    body: 'Fixed const supabase → const db pattern in stream.html and todos.html. Prevents conflict with window.supabase SDK module. Deployed to Vercel, commit 617e3ee.'
+  },
+  {
+    date: '2026-02-09T17:30:00Z',
+    type: 'modified',
+    title: 'PROTOCOL.md updated — Supabase todos in session start',
+    body: 'Added step 4 to session start protocol: query Supabase todos table for high-priority items. Ensures Greg is aware of pending tasks on every session.'
+  },
+  {
+    date: '2026-02-09T17:00:00Z',
+    type: 'added',
+    title: 'Alex invoice task added to Supabase',
+    body: 'Added "[ALEX] Pay Dec & Jan Invoices" as high-priority todo in Supabase todos table. Source: Alex\'s email from Feb 3 (11.5 + 17.25 hrs).'
+  },
+  {
+    date: '2026-02-09T09:15:00Z',
+    type: 'fixed',
+    title: 'Gateway restored after Grok model switch failure',
+    body: '2.5 hour outage caused by switching model to x-ai/grok-4 without configuring xAI API credentials. Config became invalid, gateway crashed repeatedly. Manually restored to anthropic/claude-opus-4-5. LESSON: Never change model without verifying API credentials first.'
+  },
+  {
+    date: '2026-02-09T08:30:00Z',
+    type: 'fixed',
+    title: 'Notes dashboard add-note form fixed',
+    body: 'Fixed 3 issues in notes.html: tags sent as string instead of array, variable name conflict (const supabase), and DOMContentLoaded race condition. Commit: 90f2141.'
+  },
+  {
+    date: '2026-02-09T00:00:00Z',
+    type: 'added',
+    title: 'Greg Ops Dashboard created',
+    body: 'Initial creation of the operational control panel (this dashboard). Includes architecture overview, integrations matrix, changelog, technical documentation, and system status.'
+  }
+];
+
+function renderChangelog() {
+  const container = document.getElementById('changelog-entries');
+  container.innerHTML = CHANGELOG.map(entry => {
+    const dt = new Date(entry.date);
+    const timeStr = dt.toLocaleString('en-US', { timeZone: 'Pacific/Honolulu', dateStyle: 'medium', timeStyle: 'short' });
+    const typeLabel = { added: 'ADDED', modified: 'MODIFIED', removed: 'REMOVED', fixed: 'FIXED' }[entry.type] || entry.type.toUpperCase();
+    const typeClass = { added: 'green', modified: 'yellow', removed: 'red', fixed: 'orange' }[entry.type] || 'blue';
+    return `
+      <div class="changelog-entry ${entry.type}">
+        <div class="cl-time">${timeStr} · <span class="tag ${typeClass}">${typeLabel}</span></div>
+        <div class="cl-title">${entry.title}</div>
+        <div class="cl-body">${entry.body}</div>
+      </div>`;
+  }).join('');
+}
+renderChangelog();
+</script>
+
+</body>
+</html>
