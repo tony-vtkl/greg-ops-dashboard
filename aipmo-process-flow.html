@@ -578,6 +578,28 @@
     <div class="lane-type">Strategic AI</div>
   </div>
   
+  <!-- Feasibility Check -->
+  <div class="flow-row">
+    <div class="n n-process">
+      <div class="n-label">Feasibility Check</div>
+      <div class="n-detail">Verifies PM's scope is feasible given portfolio resources + contracted customer delivery schedules</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="n n-decision">
+      <div class="n-inner">Feasible?</div>
+    </div>
+  </div>
+  <div class="branch">
+    <div class="branch-path branch-yes">
+      <div class="branch-label" style="color:#00e676;">✅ Proceed to Gates</div>
+    </div>
+    <div class="branch-path branch-no">
+      <div class="branch-label" style="color:#ff6b6b;">❌ Return to PM — scope infeasible</div>
+    </div>
+  </div>
+  
+  <div class="arrow-down">↓</div>
+  
   <!-- Gate 1: Budget -->
   <div class="flow-row">
     <div class="n n-process">
@@ -809,6 +831,18 @@
         <div class="n n-event" style="width:70px;height:70px;">
           <div class="n-label" style="font-size:0.65rem;">TASK_<br>COMPLETE</div>
         </div>
+        <div class="arrow">→</div>
+        <div class="n n-process">
+          <div class="n-label">Recorded Demo</div>
+          <div class="n-detail">Evidence capture</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="n n-process" style="border-color:#00e676;">
+          <div class="n-label">Ship to Verifier</div>
+          <div class="n-detail">Demo + artifacts → verification</div>
+        </div>
+      </div>
+      <div class="flow-row" style="margin-top:8px;">
         <span style="font-size:0.7rem; color:#667; padding:0 4px;">or</span>
         <div class="n n-event" style="width:70px;height:70px;border-color:#ff6b6b;background:rgba(255,107,107,0.1);">
           <div class="n-label" style="font-size:0.65rem;">BLOCKER_<br>RAISED</div>
@@ -1178,6 +1212,12 @@
     <div class="comm-item">
       <div class="comm-channel">Vercel Dashboard</div>
       <div class="comm-desc">Visual audit trail, checkpoint history, sprint evidence</div>
+    </div>
+  </div>
+  <div style="background:rgba(0,230,118,0.05); border:1px solid rgba(0,230,118,0.2); border-radius:8px; padding:12px; margin-top:12px; font-size:0.78rem;">
+    <div style="color:#00e676; font-weight:700; margin-bottom:6px;">⚡ Core Principle</div>
+    <div style="color:#8892a4; line-height:1.5;">
+      Every trigger/event is timestamped so any agent can recursively trace back through the full event chain. All hooks are deterministic — same input always produces same routing. Timestamps enable full auditability and causal tracing across the entire pipeline.
     </div>
   </div>
 </div>
